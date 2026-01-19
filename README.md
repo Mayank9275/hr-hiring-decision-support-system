@@ -1,1 +1,1 @@
-# hr-hiring-decision-support-system
+# HR-Hiring-Decision-Support-System
