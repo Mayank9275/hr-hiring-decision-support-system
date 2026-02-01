@@ -1,18 +1,23 @@
 from NLP_ML.engine.matcher import rank_candidates
+import os
+import shutil
 
-def evaluate_resume(jd_text, resume_paths):
-    """
-    Adapter function for backend.
-    Calls NLP/ML module and returns structured result.
-    """
-    result = rank_candidates(jd_text, resume_paths)
+UPLOAD_DIR = "uploaded_resumes"
+
+def evaluate_resume(job_description, resumes):
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+    resume_paths = []
+
+    for resume in resumes:
+        file_path = os.path.join(UPLOAD_DIR, resume.filename)
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(resume.file, buffer)
+        resume_paths.append(file_path)
+
+    results = rank_candidates(job_description, resume_paths)
 
     return {
-        "final_score": result.get("final_score"),
-        "similarity_score": result.get("similarity_score"),
-        "skill_score": result.get("skill_score"),
-        "experience_score": result.get("experience_score"),
-        "matched_keywords": result.get("matched_keywords"),
-        "missing_keywords": result.get("missing_keywords"),
-        "remarks": result.get("remarks"),
+        "job_description": job_description,
+        "ranked_candidates": results
     }
