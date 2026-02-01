@@ -4,11 +4,13 @@ from typing import List, Dict
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-from engine.resume_parser import extract_text
-from engine.preprocess import preprocess_text
-from engine.explainability import explain_match
-from engine.skill_score import extract_required_skills_from_jd, skill_match_score
-from engine.experience_score import experience_match_score
+from .resume_parser import extract_text
+from .preprocess import preprocess_text
+from .explainability import explain_match
+from .skill_score import extract_required_skills_from_jd, skill_match_score
+from .experience_score import experience_match_score
+
+
 
 
 def rank_candidates(jd_text: str, resume_paths: List[str]) -> List[Dict]:
