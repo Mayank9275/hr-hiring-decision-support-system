@@ -1,0 +1,12 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Uploaded resumes
+uploaded_resumes/
+
+# macOS system files
+.DS_Store
+
+ø
+

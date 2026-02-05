@@ -1,7 +1,10 @@
 // ================= LOGIN =================
+f/************************************************
+ * AUTH (LOGIN / LOGOUT)
+ ************************************************/
 function login() {
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
+  const email = document.getElementById("email")?.value;
+  const password = document.getElementById("password")?.value;
 
   if (email === "hr@company.com" && password === "admin123") {
     localStorage.setItem("loggedIn", "true");
@@ -16,27 +19,29 @@ function logout() {
   window.location.href = "login.html";
 }
 
-// Protect pages
+// Protect all pages except login
 if (!window.location.pathname.includes("login.html")) {
   if (!localStorage.getItem("loggedIn")) {
     window.location.href = "login.html";
   }
 }
 
-// ================= ANALYZE =================
+/************************************************
+ * ANALYZE CANDIDATES (DASHBOARD)
+ ************************************************/
 async function analyze() {
-  const jobTitle = document.getElementById("jobTitle").value;
-  const skills = document.getElementById("skills").value;
-  const experience = document.getElementById("experience").value;
-  const jobDesc = document.getElementById("jobDesc").value;
-  const files = document.getElementById("resumes").files;
+  const jobTitle = document.getElementById("jobTitle")?.value;
+  const skills = document.getElementById("skills")?.value;
+  const experience = document.getElementById("experience")?.value;
+  const jobDesc = document.getElementById("jobDesc")?.value;
+  const fileInput = document.getElementById("resumes");
+  const files = fileInput?.files;
 
-  if (!files.length) {
+  if (!files || files.length === 0) {
     alert("Please upload at least one resume");
     return;
   }
 
-  // Build JD text (matches your NLP design)
   const jd_text = `
 Role: ${jobTitle}
 Required skills: ${skills}
@@ -51,7 +56,6 @@ ${jobDesc}
     formData.append("resumes", files[i]);
   }
 
-  // Loading state
   const resultsDiv = document.getElementById("results");
   if (resultsDiv) {
     resultsDiv.innerHTML = "<p>Analyzing candidates...</p>";
@@ -68,82 +72,111 @@ ${jobDesc}
     }
 
     const data = await response.json();
-    renderResults(data);
 
-    // Save results for other pages (analytics, candidates)
+    // Save once, overwrite old results (correct behavior)
     localStorage.setItem("analysisResults", JSON.stringify(data));
+
+    if (resultsDiv) {
+      renderResults(data, resultsDiv);
+    }
+
+    alert("Analysis completed successfully!");
 
   } catch (error) {
     console.error(error);
-    alert("Failed to analyze candidates");
+    alert("Failed to analyze candidates. Is backend running?");
   }
 }
 
-// ================= RENDER RESULTS =================
-function renderResults(results) {
-  const resultsDiv = document.getElementById("results");
-  if (!resultsDiv) return;
-
-  resultsDiv.innerHTML = "";
+/************************************************
+ * RENDER RESULTS (REUSABLE)
+ ************************************************/
+function renderResults(results, container) {
+  container.innerHTML = "";
 
   results.forEach(c => {
-    let badgeClass =
-      c.final_score >= 0.7 ? "strong" :
-      c.final_score >= 0.4 ? "moderate" : "weak";
+    const finalScore = c.final_score ?? 0;
 
-    resultsDiv.innerHTML += `
+    let badgeClass =
+      finalScore >= 0.7 ? "strong" :
+      finalScore >= 0.4 ? "moderate" : "weak";
+
+    container.innerHTML += `
       <div class="candidate">
         <h3>${c.candidate_name}</h3>
 
-        <div class="score">${(c.final_score * 100).toFixed(1)}%</div>
+        <div class="score">${(finalScore * 100).toFixed(1)}%</div>
+
         <div class="progress">
-          <div class="progress-bar" style="width:${c.final_score * 100}%"></div>
+          <div class="progress-bar" style="width:${finalScore * 100}%"></div>
         </div>
 
-        <span class="badge ${badgeClass}">${c.remarks}</span>
+        <span class="badge ${badgeClass}">
+          ${c.remarks ?? "Evaluation complete"}
+        </span>
 
-        <p class="small"><b>Similarity:</b> ${c.similarity_score.toFixed(2)}</p>
-        <p class="small"><b>Skill Score:</b> ${c.skill_score.toFixed(2)}</p>
-        <p class="small"><b>Experience Score:</b> ${c.experience_score.toFixed(2)}</p>
+        <p class="small"><b>Similarity:</b> ${(c.similarity_score ?? 0).toFixed(2)}</p>
+        <p class="small"><b>Skill Score:</b> ${(c.skill_score ?? 0).toFixed(2)}</p>
+        <p class="small"><b>Experience Score:</b> ${(c.experience_score ?? 0).toFixed(2)}</p>
 
-        <p class="small"><b>Matched:</b> ${c.matched_keywords.join(", ")}</p>
-        <p class="small"><b>Missing:</b> ${c.missing_keywords.join(", ")}</p>
+        <p class="small"><b>Matched:</b> ${(c.matched_keywords ?? []).join(", ")}</p>
+        <p class="small"><b>Missing:</b> ${(c.missing_keywords ?? []).join(", ")}</p>
       </div>
     `;
   });
 }
 
-// ================= CANDIDATES PAGE =================
-const candidateList = document.getElementById("candidateList");
-if (candidateList) {
-  const stored = localStorage.getItem("analysisResults");
-  if (stored) {
-    const results = JSON.parse(stored);
-    renderResults(results);
-  } else {
-    candidateList.innerHTML = "<p>No analysis data found.</p>";
-  }
-}
+/************************************************
+ * CANDIDATES PAGE
+ ************************************************/
+document.addEventListener("DOMContentLoaded", () => {
+  const candidateList = document.getElementById("candidateList");
 
-// ================= ANALYTICS PAGE =================
-if (document.getElementById("scoreChart")) {
-  const stored = localStorage.getItem("analysisResults");
-  if (stored) {
+  if (candidateList) {
+    const stored = localStorage.getItem("analysisResults");
+
+    if (!stored) {
+      candidateList.innerHTML =
+        "<p>No analysis data found. Please analyze candidates first.</p>";
+      return;
+    }
+
+    const results = JSON.parse(stored);
+    renderResults(results, candidateList);
+  }
+});
+
+/************************************************
+ * ANALYTICS PAGE
+ ************************************************/
+document.addEventListener("DOMContentLoaded", () => {
+  const scoreChart = document.getElementById("scoreChart");
+
+  if (scoreChart) {
+    const stored = localStorage.getItem("analysisResults");
+    if (!stored) return;
+
     const results = JSON.parse(stored);
 
     const names = results.map(r => r.candidate_name);
-    const scores = results.map(r => Math.round(r.final_score * 100));
+    const scores = results.map(r => Math.round((r.final_score ?? 0) * 100));
 
     new Chart(scoreChart, {
       type: "bar",
       data: {
         labels: names,
         datasets: [{
-          label: "Final Score",
+          label: "Final Score (%)",
           data: scores,
           backgroundColor: "#00f2fe"
         }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: { beginAtZero: true, max: 100 }
+        }
       }
     });
   }
-}
+});
